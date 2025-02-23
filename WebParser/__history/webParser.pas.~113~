@@ -1,0 +1,104 @@
+unit webParser;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, IdURI, System.NetEncoding;
+
+type
+  TForm2 = class(TForm)
+    SearchMemo: TMemo;
+    ResoultMemo: TMemo;
+    SearchButton: TButton;
+    procedure SearchButtonClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  Form2: TForm2;
+
+implementation
+
+{$R *.dfm}
+
+uses
+  IdHTTP, IdSSLOpenSSL, System.RegularExpressions;
+procedure TForm2.SearchButtonClick(Sender: TObject);
+const
+  cUSER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+var
+    HTTP: TIdHTTP;
+    SSLHandler: TIdSSLIOHandlerSocketOpenSSL;
+    request : string;
+    response : string;
+    buffer : string;
+    urlRegex: TRegEx;
+    LinkList: TStringList;
+    Match: TMatch;
+    w3Regex : TRegEx;
+    endRegex : TRegEx;
+    i: Integer;
+    validUrl : bool;
+    FinalList: TStringList;
+
+    debugBuffer : string;
+
+  begin
+  HTTP := TIdHTTP.Create(nil);
+  SSLHandler := TIdSSLIOHandlerSocketOpenSSL.Create(nil);
+  LinkList := TStringList.Create;
+  FinalList := TStringList.Create;
+
+    try
+      HTTP.Request.UserAgent := cUSER_AGENT;
+      HTTP.IOHandler := SSLHandler;
+      HTTP.HandleRedirects := True;
+      SSLHandler.SSLOptions.Method := sslvTLSv1_2;
+
+      buffer := SearchMemo.Text;
+
+      request := 'https://www.bing.com/search?q=' + TNetEncoding.URL.Encode(buffer);
+      SearchMemo.Text := request;
+
+      Response := HTTP.Get(request);
+      urlRegex := TRegEx.Create('https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)');
+      w3Regex := TRegEx.Create('\bhttps?:\/\/www\.w3\.org\b');
+      endRegex := TRegEx.Create('\bbing\.com\b');
+      for Match in urlRegex.Matches(Response) do
+        begin
+          LinkList.Add(Match.Value);
+        end;
+
+      i := 4;
+      validUrl := false;
+
+      while (i < LinkList.Count) and (not validUrl) do
+        begin
+          debugBuffer :=  LinkList[i];
+
+          if not ((w3Regex.IsMatch(LinkList[i])) or (endRegex.IsMatch(LinkList[i]))) then
+             validUrl := true;
+             break;
+
+          Inc(i);
+        end;
+
+      while (i < LinkList.Count) and (endRegex.IsMatch(LinkList[i]))  do
+        begin
+           FinalList.Add(LinkList[i]);
+        end;
+
+      ResoultMemo.Lines := FinalList;
+    finally
+      HTTP.Free;
+      SSLHandler.Free;
+  end;
+
+end;
+
+end.
+
