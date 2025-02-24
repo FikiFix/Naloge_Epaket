@@ -1,0 +1,60 @@
+﻿unit xmlParser;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Dialogs, System.RegularExpressions;
+
+type
+  TForm2 = class(TForm)
+    LoadButton: TButton;
+    DisplayMemo: TMemo;
+    procedure LoadButtonClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  Form2: TForm2;
+
+implementation
+
+function LoadXMLFileToStringList: string;
+var
+  openDialog: TOpenDialog;
+  fileContents: TStringList;
+begin
+  fileContents := TStringList.Create;
+  openDialog := TOpenDialog.Create(nil);
+  try
+    openDialog.Filter := 'XML Files|*.xml|All Files|*.*';
+    openDialog.DefaultExt := 'xml';
+    openDialog.Options := [ofFileMustExist];
+
+    if openDialog.Execute then
+      fileContents.LoadFromFile(openDialog.FileName);
+
+  finally
+    openDialog.Free;
+  end;
+
+  Result := fileContents.Text;
+end;
+{$R *.dfm}
+
+procedure TForm2.LoadButtonClick(Sender: TObject);
+var
+    fileContents : string;
+    xmlStart : TRegEx;
+    xmlEnd : TRegEx;
+
+begin
+    fileContents := LoadXMLFileToStringList();
+    xmlStart := TRegEx.Create('<\s*([a-zA-Z_][\w\-]*)\s*[^>]*>');
+    xmlEnd := TRegEx.Create('</\s*([a-zA-Z_][\w\-]*)\s*>');
+end;
+
+end.

@@ -1,0 +1,162 @@
+unit xmlParser;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Dialogs, System.RegularExpressions, System.Generics.Collections,
+   Vcl.ComCtrls;
+
+
+type
+  TForm2 = class(TForm)
+    LoadButton: TButton;
+    DisplayMemo: TMemo;
+    procedure LoadButtonClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  Form2: TForm2;
+
+implementation
+
+//izberemo xml file in ga shranimo v string
+function LoadXMLFileToString: string;
+var
+  openDialog: TOpenDialog;
+  fileContents: TStringList;
+begin
+  fileContents := TStringList.Create;
+  openDialog := TOpenDialog.Create(nil);
+  try
+    openDialog.Filter := 'XML Files|*.xml|All Files|*.*';
+    openDialog.DefaultExt := 'xml';
+    openDialog.Options := [ofFileMustExist];
+
+    if openDialog.Execute then
+      fileContents.LoadFromFile(openDialog.FileName);
+
+  finally
+    openDialog.Free;
+  end;
+
+  Result := fileContents.Text;
+end;
+
+//posamezne enote loèimo da dobimo gradnike podatkvne strukture drevesa
+//zgled: '<name>Filip<\name>' -> {'<name>', 'Filip', '<\name>'}
+function separateXmlContent(xmlString: string): TStringList;
+var
+  i: Integer;
+  chr: Char;
+  strBegin: Integer;
+  strEnd: Integer;
+  separated: TStringList;
+begin
+  strBegin := 0;
+  strEnd := 0;
+  separated := TStringList.Create;
+
+  xmlString := StringReplace(xmlString, #13#10, '', [rfReplaceAll]);
+  xmlString := StringReplace(xmlString, #13, '', [rfReplaceAll]);
+  xmlString := StringReplace(xmlString, #10, '', [rfReplaceAll]);
+
+  for i := 1 to xmlString.Length - 1 do
+  begin
+    chr := xmlString[i];
+
+    if chr = '<' then
+    begin
+
+      strEnd := i - 1;
+      if (strEnd - strBegin) >= 0 then
+        begin
+          var debug := Copy(xmlString, strBegin, strEnd - strBegin + 1);
+          separated.Add(debug);
+        end;
+      strBegin := i;
+    end;
+
+    if chr = '>' then
+    begin
+      strEnd := i;
+      separated.Add(Copy(xmlString, strBegin, strEnd - strBegin + 1));
+      strBegin := i + 1;
+    end;
+  end;
+
+  Result := separated;
+end;
+
+function cropTag(tag : string): string;
+  begin
+    Result := Copy(tag, 1, tag.Length-2);
+  end;
+
+
+{$R *.dfm}
+
+procedure TForm2.LoadButtonClick(Sender: TObject);
+var
+    fileContents : string;
+    xmlStart : TRegEx;
+    xmlEnd : TRegEx;
+    separated : TStringList;
+    debugBuffer : string;
+    tagStack : TStringList; //uporabimo kot stack pod. str
+
+begin
+    fileContents := LoadXMLFileToString();
+    tagStack := TStringList.Create;
+    try
+      xmlStart := TRegEx.Create('<\s*([a-zA-Z_][\w\-]*)\s*[^>]*>');
+      xmlEnd := TRegEx.Create('</\s*([a-zA-Z_][\w\-]*)\s*>');
+      separated := separateXmlContent(fileContents);
+
+      tagStack.Add(separated[0]);
+      for var i := 1 to separated.Count - 1 do
+      begin
+          //zaèetek xml znaèke - pushamo na stack
+          if xmlStart.IsMatch(separated[i]) then
+           begin
+             tagStack.Add(separated[i]);
+             continue;
+           end
+           //konec xml znaèke - popamo stack
+          else if xmlEnd.IsMatch(separated[i]) then
+            begin
+             tagStack.Delete(tagStack.Count - 1);
+             continue;
+            end
+            //tu sfiltriramo vse tabe pa space stringe. Drugaèe vemo da smo v tree root
+          else if not TRegEx.IsMatch(separated[i], '^[\t ]+$') then
+            begin
+              tagStack.Add(separated[i]);
+              var buffer := tagStack.Text;
+              buffer := StringReplace(buffer, sLineBreak, ' -> ', [rfReplaceAll]);
+
+              if buffer <> '' then //tu pobrišemo junk sufix
+                begin
+                  SetLength(buffer, Length(buffer) - 0);
+                end;
+
+              DisplayMemo.Lines.Add(buffer);
+              tagStack.Delete(tagStack.Count - 1);
+            end;
+
+
+      end;
+
+      //DisplayMemo.Lines := separated;
+    finally
+       tagStack.Free;
+    end;
+
+end;
+
+end.
+

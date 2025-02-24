@@ -1,0 +1,55 @@
+﻿unit xmlParser;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Dialogs;
+
+type
+  TForm2 = class(TForm)
+    LoadButton: TButton;
+    DisplayMemo: TMemo;
+    procedure LoadButtonClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  Form2: TForm2;
+
+implementation
+
+function LoadXMLFileToStringList: TStringList;
+var
+  OpenDialog: TOpenDialog;
+  FileContents: TStringList;
+begin
+  FileContents := TStringList.Create;
+  OpenDialog := TOpenDialog.Create(nil);
+  try
+    OpenDialog.Filter := 'XML Files|*.xml|All Files|*.*';
+    OpenDialog.DefaultExt := 'xml';
+    OpenDialog.Options := [ofFileMustExist];
+
+    if OpenDialog.Execute then
+      FileContents.LoadFromFile(OpenDialog.FileName);
+
+  finally
+    OpenDialog.Free;
+  end;
+
+  Result := FileContents;
+end;
+{$R *.dfm}
+
+procedure TForm2.LoadButtonClick(Sender: TObject);
+var
+    fileContents
+begin
+
+end;
+
+end.
